@@ -1,0 +1,180 @@
+version: 2.1
+
+workflows:
+  version: 2
+  build:
+    jobs:
+    - python_3_7
+    - python_3_6_locale
+    - python_3_6_coverage
+    - python_3_6_slow
+
+postgres: &postgres
+  - image: circleci/postgres:9.6-alpine
+    environment:
+      POSTGRES_DB: pandas_nosetest
+      POSTGRES_USER: postgres
+      privileged: true
+      
+mysql: &mysql
+  - image: circleci/mysql:5.6
+    environment:
+      MYSQL_DATABASE: pandas_nosetest
+      MYSQL_ALLOW_EMPTY_PASSWORD: yes
+
+commands: 
+  build_steps:
+    description: "Build run steps for packaging pandas"
+    parameters:
+      setup:
+        type: steps
+        default: []
+    steps:
+        - checkout
+#         - restore_cache:
+#             keys:
+#               - v1_cache
+        - steps: << parameters.setup >>        
+        - run:
+            name: All Build Steps
+            command: |
+                # Set Environment Variables
+                
+                echo "Set Environment Variables"                
+                #echo 'export TRAVIS_OS_NAME=linux' >> $BASH_ENV
+                export TRAVIS_OS_NAME=linux
+                export TRAVIS_BUILD_DIR=$CIRCLE_WORKING_DIRECTORY
+                
+                # Install System Dependencies
+                
+                sudo apt update 
+                sudo apt install mysql-client postgresql-client xvfb qt5-default gnuplot python-sqlalchemy ccache
+                #sudo apt install build-essential
+                
+                if [[ "$JOB" == "slow" ]]; then
+                  mysql -e 'create database pandas_nosetest;' -u root
+                  psql -c 'create database pandas_nosetest;' -U postgres -h localhost                  
+                fi
+                
+                # Before Install
+                
+                echo "Before Install"                
+                # set non-blocking IO on travis
+                # https://github.com/travis-ci/travis-ci/issues/8920#issuecomment-352661024
+                python -c 'import os,sys,fcntl; flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL); fcntl.fcntl(sys.stdout, fcntl.F_SETFL, flags&~os.O_NONBLOCK);'
+                source ci/travis_process_gbq_encryption.sh
+                export PATH="$HOME/miniconda3/bin:$PATH"
+                df -h
+                pwd
+                uname -a
+                git --version
+                git tag
+                export BOTO_CONFIG=/dev/null
+                
+                # Install
+                
+                echo "install start"                
+                ci/prep_cython_cache.sh
+                ci/setup_env.sh
+                ci/submit_cython_cache.sh
+                echo "install done"
+                
+                python setup.py build_ext --inplace --force
+
+                # Before Script
+                
+                export DISPLAY=":99.0"
+                #echo "sh -e /etc/init.d/xvfb start"
+                #sudo sh -e /usr/bin/xvfb-run
+                sleep 3
+                
+                # Script
+                
+                echo "script start"
+                source activate pandas-dev
+                ci/run_tests.sh
+                
+                # After Script
+                
+                echo "after_script start"
+                source activate pandas-dev && pushd /tmp && python -c "import pandas; pandas.show_versions();" && popd
+                ci/print_skipped.py
+                echo "after_script done"
+        - save_cache:
+            key: v1_cache
+            paths: 
+              - /home/circleci/.cache
+              - /home/circleci/.ccache
+
+jobs:
+  python_3_7:
+    docker:      
+      - image: circleci/python:3.7-stretch
+        environment:
+          JOB: "3.7"
+          ENV_FILE: "ci/deps/travis-37.yaml"
+          PATTERN: "(not slow and not network)"
+      - <<: *postgres
+      - <<: *mysql
+    steps:
+      - build_steps
+      
+  python_3_6_locale:
+    resource_class: large
+    docker:
+      - image: circleci/python:3.5-jessie
+        environment:
+          JOB: "3.6,locale"
+          ENV_FILE: "ci/deps/travis-36-locale.yaml"
+          PATTERN: "((not slow and not network) or (single and db))"
+#           LOCALE_OVERRIDE: "zh_CN.UTF-8"
+          QT_QPA_PLATFORM: offscreen
+      - <<: *postgres
+      - <<: *mysql
+    steps:
+      - build_steps
+      
+  python_3_6_coverage:
+    docker:
+      - image: circleci/python:3.6-jessie
+        environment:
+          JOB: "3.6, coverage"
+          ENV_FILE: "ci/deps/travis-36-cov.yaml"
+          PATTERN: "((not slow and not network) or (single and db))"
+          COVERAGE: true
+          QT_QPA_PLATFORM: offscreen
+          PANDAS_TESTING_MODE: "deprecate"
+      - <<: *postgres
+      - <<: *mysql
+    steps:
+      - build_steps
+      
+  python_3_6_slow:
+    machine:   
+      image: ubuntu-1604:201903-01
+    environment:
+      JOB: "3.6, slow" 
+      ENV_FILE: "ci/deps/travis-36-slow.yaml" 
+      QT_QPA_PLATFORM: offscreen
+      PATTERN: "slow"
+    steps:
+      - build_steps:
+          setup:
+            - run:
+                name: Install Dependencies
+                command: |              
+                  pyenv global 3.5.2
+                  pip install -U pytest
+
+                  sudo apt update 
+                  sudo apt install -y postgresql postgresql-contrib mysql-client postgresql-client
+
+                  export DEBIAN_FRONTEND=noninteractive
+                  sudo -E apt-get -q -y install mysql-server
+
+                  # allow mysql to run with blank password
+                  sudo mysql -u root -e 'use mysql; update user set plugin="mysql_native_password" where User="root"; flush privileges;'              
+
+                  # allow postgres user 'postgres' to login without blank pwd
+                  sudo sed -i '1s/^/host all all all trust\n/' /etc/postgresql/9.5/main/pg_hba.conf
+                  sudo -n -u postgres psql -q -c 'SELECT pg_reload_conf();' &
