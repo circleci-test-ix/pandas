@@ -67,10 +67,11 @@ commands:
 
                 # Before Script
                 
-                export DISPLAY=":99.0"
+                # These aren't needed for CircleCI
+                export DISPLAY=":99.0"                
                 #echo "sh -e /etc/init.d/xvfb start"
                 #sudo sh -e /usr/bin/xvfb-run
-                sleep 3
+                #sleep 3
                 
                 # Script
                 
