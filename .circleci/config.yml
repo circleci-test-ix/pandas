@@ -38,14 +38,16 @@ commands:
                 
                 # Install System Dependencies
                 
+                echo "*** ZERO"
                 sudo apt update 
-                sudo apt install mysql-client postgresql-client xvfb qt5-default gnuplot python-sqlalchemy ccache
+                echo "*** ZERO ONE"
+                sudo apt install -y mysql-client postgresql-client xvfb qt5-default gnuplot python-sqlalchemy ccache
                 
                 if [[ "$JOB" == "slow" ]]; then
                   echo "*** ONE"
                   mysql -e 'create database pandas_nosetest;' -u root
                   echo "*** TWO"
-                  TERM=xterm psql -c 'create database pandas_nosetest;' -U postgres -h localhost
+                  psql -c 'create database pandas_nosetest;' -U postgres -h localhost
                   echo "*** THREE"
                 fi
                 
