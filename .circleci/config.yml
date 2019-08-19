@@ -63,7 +63,7 @@ commands:
                 pwd
                 uname -a
                 git --version
-                #git tag
+                ./ci/check_git_tags.sh
                 export BOTO_CONFIG=/dev/null
                 
                 # Install
