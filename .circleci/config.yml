@@ -43,7 +43,7 @@ commands:
                 echo "*** ZERO ONE"
                 sudo apt install -y mysql-client postgresql-client xvfb qt5-default gnuplot python-sqlalchemy ccache
                 
-                if [[ "$JOB" == "slow" ]]; then
+                if [[ "$CIRCLE_JOB" == "python_3_6_slow" ]]; then
                   echo "*** ONE"
                   mysql -e 'create database pandas_nosetest;' -u root
                   echo "*** TWO"
@@ -63,7 +63,7 @@ commands:
                 pwd
                 uname -a
                 git --version
-                git tag
+                #git tag
                 export BOTO_CONFIG=/dev/null
                 
                 # Install
