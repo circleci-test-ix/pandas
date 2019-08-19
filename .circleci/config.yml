@@ -38,18 +38,8 @@ commands:
                 
                 # Install System Dependencies
                 
-                echo "*** ZERO"
-                sudo apt update 
-                echo "*** ZERO ONE"
+                sudo apt update
                 sudo apt install -y mysql-client postgresql-client xvfb qt5-default gnuplot python-sqlalchemy ccache
-                
-                if [[ "$CIRCLE_JOB" == "python_3_6_slow" ]]; then
-                  echo "*** ONE"
-                  mysql -e 'create database pandas_nosetest;' -u root
-                  echo "*** TWO"
-                  psql -c 'create database pandas_nosetest;' -U postgres -h localhost
-                  echo "*** THREE"
-                fi
                 
                 # Before Install
                 
@@ -164,53 +154,56 @@ jobs:
                   pip install -U pytest
 
                   sudo apt update 
-                  sudo apt install -y postgresql postgresql-contrib mysql-client postgresql-client
+                  sudo apt install -y postgresql-contrib mysql-client postgresql-client
                   
                   export DEBIAN_FRONTEND=noninteractive
                   sudo -E apt-get -q -y install mysql-server
 
                   # allow mysql to run with blank password
-                  sudo mysql -u root -e 'use mysql; update user set plugin="mysql_native_password" where User="root"; flush privileges;'              
+                  sudo mysql -u root -e 'use mysql; update user set plugin="mysql_native_password" where User="root"; flush privileges;'
 
                   # allow postgres user 'postgres' to login without blank pwd
                   sudo sed -i '1s/^/host all all all trust\n/' /etc/postgresql/9.5/main/pg_hba.conf
-                  sudo -u postgres psql -c 'SELECT pg_reload_conf();' && exit
-                  psql -c 'create database pandas_nosetest;' -U postgres -h localhost
-
-  debug:
-    machine:   
-      image: ubuntu-1604:201903-01
-    environment:
-      JOB: "3.6, slow" 
-      ENV_FILE: "ci/deps/travis-36-slow.yaml" 
-      QT_QPA_PLATFORM: offscreen
-      PATTERN: "slow"
-      TERM: xterm-256color
-    steps:
-      - build_steps:
-          setup:
-            - run:
-                name: Install Dependencies
-                command: |
-                  sudo apt update 
-                  sudo apt install -y postgresql-contrib postgresql-client
-                  
-                  # allow postgres user 'postgres' to login without blank pwd
-                  sudo sed -i '1s/^/host all all all trust\n/' /etc/postgresql/9.5/main/pg_hba.conf
-                  echo "**** ONE"
                   sudo -u postgres psql -c 'SELECT pg_reload_conf();' > /dev/null
-                  echo "**** TWO"
-                  sleep 3
-                  echo "**** THREE"
+                  
+                  # create databases
+                  mysql -e 'create database pandas_nosetest;' -u root
                   psql -c 'create database pandas_nosetest;' -U postgres -h localhost
-                  echo "**** FOUR"
+
+#   debug:
+#     machine:   
+#       image: ubuntu-1604:201903-01
+#     environment:
+#       JOB: "3.6, slow" 
+#       ENV_FILE: "ci/deps/travis-36-slow.yaml" 
+#       QT_QPA_PLATFORM: offscreen
+#       PATTERN: "slow"
+#       TERM: xterm-256color
+#     steps:
+#       - build_steps:
+#           setup:
+#             - run:
+#                 name: Install Dependencies
+#                 command: |
+#                   sudo apt update 
+#                   sudo apt install -y postgresql-contrib postgresql-client
+                  
+#                   # allow postgres user 'postgres' to login without blank pwd
+#                   sudo sed -i '1s/^/host all all all trust\n/' /etc/postgresql/9.5/main/pg_hba.conf
+#                   echo "**** ONE"
+#                   sudo -u postgres psql -c 'SELECT pg_reload_conf();' > /dev/null
+#                   echo "**** TWO"
+#                   sleep 3
+#                   echo "**** THREE"
+#                   psql -c 'create database pandas_nosetest;' -U postgres -h localhost
+#                   echo "**** FOUR"
 
 workflows:
   version: 2
   build:
     jobs:
-      - debug
+#       - debug
 #       - python_3_7
 #       - python_3_6_locale
 #       - python_3_6_coverage
-#       - python_3_6_slow
+      - python_3_6_slow
