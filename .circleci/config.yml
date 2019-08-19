@@ -159,6 +159,8 @@ jobs:
 
                   sudo apt update 
                   sudo apt install -y postgresql postgresql-contrib mysql-client postgresql-client
+                  
+                  export DEBIAN_FRONTEND=noninteractive
                   sudo -E apt-get -q -y install mysql-server
 
                   # allow mysql to run with blank password
