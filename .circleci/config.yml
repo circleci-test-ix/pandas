@@ -174,7 +174,7 @@ jobs:
 
                   # allow postgres user 'postgres' to login without blank pwd
                   sudo sed -i '1s/^/host all all all trust\n/' /etc/postgresql/9.5/main/pg_hba.conf
-                  sudo -u postgres psql -c 'SELECT pg_reload_conf();'
+                  sudo -u postgres psql -c 'SELECT pg_reload_conf();' && exit
                   psql -c 'create database pandas_nosetest;' -U postgres -h localhost
 workflows:
   version: 2
