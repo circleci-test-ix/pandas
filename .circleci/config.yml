@@ -41,9 +41,12 @@ commands:
                 sudo apt update 
                 sudo apt install mysql-client postgresql-client xvfb qt5-default gnuplot python-sqlalchemy ccache
                 
-                if [[ "$JOB" == "slow" ]]; then                  
+                if [[ "$JOB" == "slow" ]]; then
+                  echo "*** ONE"
                   mysql -e 'create database pandas_nosetest;' -u root
-                  TERM=xterm psql -c 'create database pandas_nosetest;' -U postgres -h localhost                  
+                  echo "*** TWO"
+                  TERM=xterm psql -c 'create database pandas_nosetest;' -U postgres -h localhost
+                  echo "*** THREE"
                 fi
                 
                 # Before Install
